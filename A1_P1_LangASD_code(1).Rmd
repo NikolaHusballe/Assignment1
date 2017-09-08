@@ -38,6 +38,9 @@ N.B. Create a GitHub repository for the Language Development in ASD set of assig
 Set the working directory (the directory with your data and code for these assignments):
 
 ```{r}
+setwd("~/AU Uni work/3. semester/Experimental Methods 3/Assignment1")
+
+library(plyr)
 
 ```
 
@@ -47,7 +50,9 @@ Load the three data sets, after downloading them from dropbox and saving them in
 * Word data: https://www.dropbox.com/s/8ng1civpl2aux58/token_train.csv?dl=0
 
 ```{r}
-
+demo_train = read.csv("demo_train(1).csv")
+token_train = read.csv("token_train.csv")
+LU_train = read.csv("LU_train.csv")
 ```
 
 Explore the 3 datasets (e.g. visualize them, summarize them, etc.). You will see that the data is messy, since the psychologists collected the demographic data, a linguist analyzed the length of utterance in May 2014 and the same linguist analyzed the words several months later. In particular:
@@ -65,6 +70,8 @@ Tip: Look into the package data.table, or google "how to rename variables in R"
 
 ```{r}
 
+demo_train = plyr::rename(demo_train, c("Child.ID"="SUBJ", "Visit"="VISIT", "MullenRaw" = "nonverbalIQ", "ExpressiveLangRaw"="verbalIQ"))
+
 ```
 
 2b. Find a way to homogeneize the way "visit" is reported. If you look into the original data sets, you will see that in the LU data and the Token data, Visits are called "visit 1" in stead of just 1 (which is the case in the demographic data set).
@@ -72,6 +79,10 @@ Tip: There is a package called stringr, which will be very handy for you also in
 
 ```{r}
 
+library(stringr)
+
+LU_train$VISIT = str_extract(LU_train$VISIT,"\\d" )
+token_train$VISIT = str_extract(LU_train$VISIT,"\\d" )
 
 ```
 
@@ -87,6 +98,10 @@ Tip: You will have to do identical work for both data sets, so to save time on t
 
 
 ```{r}
+# removing spaces and dots so the names have the same in all of the data
+LU_train$SUBJ = gsub("\\.","", LU_train$SUBJ)
+demo_train$SUBJ = gsub("\\.", "", demo_train$SUBJ)
+token_train$SUBJ = gsub("\\.", "", token_train$SUBJ)
 
 ```
 
@@ -106,6 +121,12 @@ It would be smart to rename the MullenRaw and ExpressiveLangRaw into something y
 
 ```{r}
 
+library(tidyverse)
+data1 = select(demo_train, SUBJ, VISIT, Ethnicity, Diagnosis, Gender, Age, ADOS, nonverbalIQ, verbalIQ)
+data2 = select(LU_train,SUBJ, VISIT, MOT_MLU, MOT_LUstd, CHI_MLU, CHI_LUstd)
+data3 = select(token_train, SUBJ, VISIT, types_MOT, types_CHI, tokens_MOT, tokens_CHI)
+
+
 
 ```
 
@@ -116,7 +137,8 @@ Tip: Merge only works for two data frames at the time.
 Tip: Check the number of observations in the datasets before and after merging. What is going on?
 
 ```{r}
-
+Data = merge(data1,data2)
+data = merge(Data, data3)
 ```
 
 Are we done yet?
@@ -130,6 +152,10 @@ Tip: the final dataset should have as many rows as the the old one.
 
 
 ```{r}
+library(plyr)
+data_visit = subset(data,VISIT == "1", select=c(SUBJ, ADOS, nonverbalIQ, verbalIQ))
+data_visit = plyr::rename(data_visit, c("ADOS"="ADOS1", "nonverbalIQ"="nonverbalIQ1", "verbalIQ"="verbalIQ1"))
+DATA = merge(data, data_visit, by ="SUBJ")
 
 ```
 
@@ -144,8 +170,16 @@ Tip: as.numeric() might be a useful function, but not alone.
 Tip: Google "how to rename levels in R".
 
 ```{r}
+DATA$VISIT = as.numeric(DATA$VISIT)
 
+DATA$SUBJ = as.factor(DATA$SUBJ)
+DATA$SUBJ = as.numeric(DATA$SUBJ, levels = 61)
 
+DATA$Gender = as.factor(DATA$Gender)
+DATA$Gender = plyr::revalue(DATA$Gender, c("1"="M", "2"="F"))
+
+DATA$Diagnosis = as.factor(DATA$Diagnosis)
+DATA$Diagnosis = plyr:: revalue(DATA$Diagnosis, c("A"="ASD", "B"="TD"))
 ```
 
 
@@ -153,6 +187,7 @@ Save the data set using into a csv file. Hint: look into write.csv()
 
 ```{r}
 
+write.csv(DATA, file = "cleandata.csv")
 ```
 
 
