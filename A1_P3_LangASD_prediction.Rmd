@@ -45,7 +45,7 @@ trainData = read.csv("cleandata.csv")
 ```{r}
 model1 = lmer(CHI_MLU ~ 1 + VISIT + verbalIQ1 + MOT_MLU + types_CHI + (1+VISIT|SUBJ), REML = F, trainData)
 
-rmse(model1, trainData) #0.29
+modelr::rmse(model1, trainData) #0.29
 ```
 
 - create the test dataset (apply the code from assignment 1 part 1 to clean up the 3 test datasets)
@@ -54,6 +54,7 @@ demo_test = plyr::rename(demo_test, c("Child.ID"="SUBJ", "Visit"="VISIT", "Mulle
 
 library(stringr)
 library(tidyverse)
+library(Metrics)
 
 LU_test$VISIT = str_extract(LU_test$VISIT,"\\d" )
 token_test$VISIT = str_extract(LU_test$VISIT,"\\d" )
@@ -92,7 +93,7 @@ DATA$Diagnosis = plyr:: revalue(DATA$Diagnosis, c("A"="ASD", "B"="TD"))
 ```{r}
 model2 = lmer(CHI_MLU ~ 1 + VISIT + verbalIQ1 + MOT_MLU + types_CHI + (1+VISIT|SUBJ), REML = F, DATA)
 
-rmse(model1, DATA) #0.46
+modelr::rmse(model1, DATA) #0.46
 ```
 - optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
@@ -115,20 +116,72 @@ model3 = lmer(CHI_MLU ~ 1 + VISIT + Diagnosis + (1+VISIT|SUBJ), trainData, REML 
 - Report the results and comment on them.
 ```{r}
 
+
 flds <- createFolds(unique(Data$SUBJ), k = 4)
+
+test_rmse = NULL
+train_rmse = NULL
+n =  1
 
 for(i in flds){
   
   #test
-  testdata =subset(Data,SUBJ %in% i)
+  testsub = subset(trainData,SUBJ %in% i)
   #train
-  traindata = subset(Data,!(SUBJ %in% i))
+  trainsub = subset(trainData,!(SUBJ %in% i))
+  #train model
+  trainm = lmer(CHI_MLU ~ 1 + VISIT + Diagnosis + (1+VISIT|SUBJ), trainsub, REML = F)
+  
+  # predicting values for the dependent variable from the testdata using the training model 
+  pred = predict(trainm, testsub, allow.new.levels = T)
+  
+  # calculating the rmse between the actual values in CHI_MLU and the predicted values for both the test and the training subset  
+  train_rmse[n]=Metrics::rmse(testsub$CHI_MLU, pred)
+  test_rmse[n]= Metrics::rmse(trainsub$CHI_MLU, fitted(trainm))
+  
+    
+  n=n+1
 }
+
+mean(test_rmse)
+mean(train_rmse)
+
 
 ```
 
 - Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
+```{r}
 
+
+flds <- createFolds(unique(Data$SUBJ), k = 4)
+
+test_rmse = NULL
+train_rmse = NULL
+n =  1
+
+for(i in flds){
+  
+  #test
+  testsub = subset(trainData,SUBJ %in% i)
+  #train
+  trainsub = subset(trainData,!(SUBJ %in% i))
+  #train model
+  trainm = lmer(CHI_MLU ~ 1 + VISIT + verbalIQ1 + MOT_MLU + types_CHI + (1+VISIT|SUBJ), REML = F, trainsub)
+  
+  pred = predict(trainm, testsub, allow.new.levels = T)
+  
+  train_rmse[n]=Metrics::rmse(testsub$CHI_MLU, pred)
+  test_rmse[n]= Metrics::rmse(trainsub$CHI_MLU, fitted(trainm))
+  
+    
+  n=n+1
+}
+
+mean(test_rmse)
+mean(train_rmse)
+
+
+```
 - Bonus Question 1: How would you go comparing the performance of the basic model and the cross-validated model on the testing set?
 - Bonus Question 2: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
 - Bonus Question 3: compare the cross-validated predictive error against the actual predictive error on the test data
@@ -145,7 +198,21 @@ You want to evaluate:
 (Tip: recreate the equation of the model: Y=Intercept+BetaX1+BetaX2, etc; input the average of the TD group  for each parameter in the model as X1, X2, etc.).
 
 - how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
+```{r}
 
+
+bernie = subset(DATA,SUBJ == "2", select=c(SUBJ, VISIT, Diagnosis, CHI_MLU, MOT_MLU, verbalIQ1, types_CHI))
+
+fakeChild = subset(DATA,Diagnosis=='TD') %>% group_by(VISIT) %>% dplyr::summarise(verbalIQ1 = mean(verbalIQ1), MOT_MLU = mean(MOT_MLU), types_CHI =mean(types_CHI))
+fakeChild$SUBJ=200
+
+#the average prediction
+predict(model3,fakeChild,allow.new.levels=TRUE)
+
+#Bernies prediction
+predict(model3,bernie,allow.new.levels=TRUE)
+
+```
 [HERE GOES YOUR ANSWER]
 
 ### OPTIONAL: Exercise 4) Model Selection via Information Criteria
