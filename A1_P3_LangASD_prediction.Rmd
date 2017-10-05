@@ -207,10 +207,10 @@ fakeChild = subset(DATA,Diagnosis=='TD') %>% group_by(VISIT) %>% dplyr::summaris
 fakeChild$SUBJ=200
 
 #the average prediction
-predict(model3,fakeChild,allow.new.levels=TRUE)
+predict(model1,fakeChild,allow.new.levels=TRUE)
 
 #Bernies prediction
-predict(model3,bernie,allow.new.levels=TRUE)
+predict(model1,bernie,allow.new.levels=TRUE)
 
 ```
 [HERE GOES YOUR ANSWER]
